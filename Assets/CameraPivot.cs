@@ -10,7 +10,12 @@ public class CameraPivot : MonoBehaviour
     InputAction cameraMoveAction;
 
     [SerializeField] private float rotationSpeed = 240;
-    [SerializeField] private float acceleration = 360;
+    [SerializeField] private float rotationAcceleration = 360;
+
+    [SerializeField] private float xLerpSpeed = 10;
+    [SerializeField] private float yLerpSpeed = 5;
+
+    [SerializeField] private Transform target;
 
     private float targetRotationSpeed;
     private float currentRotationSpeed;
@@ -51,9 +56,12 @@ public class CameraPivot : MonoBehaviour
     public void Update()
     {
         SetRotationSpeed(cameraMoveAction.ReadValue<float>());
-        currentRotationSpeed = Mathf.Lerp(currentRotationSpeed, targetRotationSpeed, acceleration * Time.deltaTime);
+        currentRotationSpeed = Mathf.Lerp(currentRotationSpeed, targetRotationSpeed, rotationAcceleration * Time.deltaTime);
         currentDirection += currentRotationSpeed * Time.deltaTime;
         transform.rotation = Quaternion.Euler(0, currentDirection, 0);
-        //SetAngle(transform.rotation.y);
+        
+        Vector3 newPosition = Vector3.Lerp(transform.position, target.position, xLerpSpeed * Time.deltaTime);
+        float newYPosition = Mathf.Lerp(transform.position.y, target.position.y, yLerpSpeed * Time.deltaTime);
+        transform.position = new Vector3(newPosition.x, newYPosition, newPosition.z);
     }
 }
