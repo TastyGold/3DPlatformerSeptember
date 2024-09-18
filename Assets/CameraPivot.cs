@@ -8,9 +8,13 @@ public class CameraPivot : MonoBehaviour
 {
     PlayerActions inputActions;
     InputAction cameraMoveAction;
+    InputAction playerMoveAction;
 
     [SerializeField] private float rotationSpeed = 240;
     [SerializeField] private float rotationAcceleration = 360;
+
+    [SerializeField] private float strafeCameraTurnSpeed = 50;
+    [SerializeField] private float strafeDeadzone = 0.5f;
 
     [SerializeField] private float xLerpSpeed = 10;
     [SerializeField] private float yLerpSpeed = 5;
@@ -32,15 +36,18 @@ public class CameraPivot : MonoBehaviour
     {
         inputActions = new PlayerActions();
         cameraMoveAction = inputActions.CameraControls.Rotate;
+        playerMoveAction = inputActions.PlayerControls.Move;
     }
 
     private void OnEnable()
     {
         cameraMoveAction.Enable();
+        playerMoveAction.Enable();
     }
     private void OnDisable()
     {
         cameraMoveAction.Disable();
+        playerMoveAction.Disable();
     }
 
     public void SetAngle(float angle)
@@ -48,20 +55,26 @@ public class CameraPivot : MonoBehaviour
         currentDirection = angle;
     }
 
-    public void SetRotationSpeed(float speed)
+    public void SetRotationSpeed(float speed, float strafe)
     {
-        targetRotationSpeed = rotationSpeed * speed;
+        float deadzoneStrafe = Mathf.Abs(strafe);
+        deadzoneStrafe -= strafeDeadzone;
+        deadzoneStrafe = Mathf.Max(deadzoneStrafe, 0);
+        deadzoneStrafe *= Mathf.Sign(strafe);
+        deadzoneStrafe /= 1 - strafeDeadzone;
+
+        targetRotationSpeed = rotationSpeed * speed + deadzoneStrafe * strafeCameraTurnSpeed;
     }
 
-    public void Update()
+    public void FixedUpdate()
     {
-        SetRotationSpeed(cameraMoveAction.ReadValue<float>());
-        currentRotationSpeed = Mathf.Lerp(currentRotationSpeed, targetRotationSpeed, rotationAcceleration * Time.deltaTime);
-        currentDirection += currentRotationSpeed * Time.deltaTime;
+        SetRotationSpeed(cameraMoveAction.ReadValue<float>(), playerMoveAction.ReadValue<Vector2>().x);
+        currentRotationSpeed = Mathf.Lerp(currentRotationSpeed, targetRotationSpeed, rotationAcceleration * Time.fixedDeltaTime);
+        currentDirection += currentRotationSpeed * Time.fixedDeltaTime;
         transform.rotation = Quaternion.Euler(0, currentDirection, 0);
         
-        Vector3 newPosition = Vector3.Lerp(transform.position, target.position, xLerpSpeed * Time.deltaTime);
-        float newYPosition = Mathf.Lerp(transform.position.y, target.position.y, yLerpSpeed * Time.deltaTime);
+        Vector3 newPosition = Vector3.Lerp(transform.position, target.position, xLerpSpeed * Time.fixedDeltaTime);
+        float newYPosition = Mathf.Lerp(transform.position.y, target.position.y, yLerpSpeed * Time.fixedDeltaTime);
         transform.position = new Vector3(newPosition.x, newYPosition, newPosition.z);
     }
 }

@@ -7,11 +7,12 @@ using UnityEngine.SearchService;
 
 public class PlayerMove : MonoBehaviour
 {
-    PlayerActions playerActions;
-    InputAction jumpAction;
-    InputAction moveAction;
+    private PlayerActions playerActions;
+    private InputAction jumpAction;
+    private InputAction moveAction;
 
     private CameraPivot cameraPivot;
+    private FloorDetection floorDetection;
 
     [SerializeField] private float jumpVelocity = 3;
     [SerializeField] private float jumpHoverDuration = 0.5f;
@@ -20,10 +21,10 @@ public class PlayerMove : MonoBehaviour
     [SerializeField] private float terminalVelocity = 5;
     [SerializeField] private float groundedHeight = 0;
     [SerializeField] private float walkSpeed = 10;
-    private float velocity = 0;
+    private Vector3 velocity;
     private States currentState = States.Grounded;
     private float jumpHoverTimer = 0;
-    private Rigidbody2D rb;
+    private Rigidbody rb;
 
     enum States
     {
@@ -40,8 +41,9 @@ public class PlayerMove : MonoBehaviour
         //jumpAction.performed += OnJumpStarted;
         //jumpAction.canceled += OnJumpEnded;
         moveAction = playerActions.PlayerControls.Move;
-        rb = GetComponent<Rigidbody2D>();
+        rb = GetComponent<Rigidbody>();
         cameraPivot = FindObjectOfType<CameraPivot>();
+        floorDetection = GetComponentInChildren<FloorDetection>();
     }
 
     void OnEnable()
@@ -72,18 +74,27 @@ public class PlayerMove : MonoBehaviour
         Destroy(gameObject);
     }
 
-    void Update()
+    void FixedUpdate()
     {
         HandleWalking();
         HandleJumping();
+        rb.velocity = velocity;
     }
 
     private void HandleWalking()
     {
         Vector2 movementInput = moveAction.ReadValue<Vector2>();
         Vector3 rotatedMovementInput = Quaternion.AngleAxis(cameraPivot.CurrentDirection, Vector3.up) * new Vector3(movementInput.x, 0, movementInput.y);
-        Debug.Log(cameraPivot.CurrentDirection);
-        transform.position += Time.deltaTime * walkSpeed * rotatedMovementInput;
+        //Debug.Log(cameraPivot.CurrentDirection);
+        float yVel = velocity.y;
+        velocity = walkSpeed * rotatedMovementInput;
+        velocity.y = yVel;
+    }
+
+    private bool IsGrounded()
+    {
+        Debug.Log(floorDetection.Floors);
+        return floorDetection.Floors > 0;
     }
 
     private void HandleJumping()
@@ -94,18 +105,21 @@ public class PlayerMove : MonoBehaviour
                 {
                     if (jumpAction.IsPressed())
                     {
-                        velocity = jumpVelocity;
+                        velocity.y = jumpVelocity;
                         currentState = States.JumpRise;
+                    }
+                    else if (!IsGrounded())
+                    {
+                        currentState = States.JumpFall;
                     }
                     break;
                 }
             case States.JumpRise:
                 {
-                    transform.Translate(Time.deltaTime * velocity * Vector3.up);
-                    velocity -= jumpRiseGravity * Time.deltaTime;
-                    if (velocity <= 0 && jumpAction.IsPressed())
+                    velocity.y -= jumpRiseGravity * Time.fixedDeltaTime;
+                    if (velocity.y <= 0 && jumpAction.IsPressed())
                     {
-                        velocity = 0;
+                        velocity.y = 0;
                         currentState = States.JumpHover;
                         jumpHoverTimer = jumpHoverDuration;
                     }
@@ -118,7 +132,7 @@ public class PlayerMove : MonoBehaviour
                 }
             case States.JumpHover:
                 {
-                    jumpHoverTimer -= Time.deltaTime;
+                    jumpHoverTimer -= Time.fixedDeltaTime;
                     if (jumpHoverTimer <= 0 || !jumpAction.IsPressed())
                     {
                         currentState = States.JumpFall;
@@ -127,17 +141,16 @@ public class PlayerMove : MonoBehaviour
                 }
             case States.JumpFall:
                 {
-                    transform.Translate(Time.deltaTime * velocity * Vector3.up);
-                    velocity -= jumpFallGravity * Time.deltaTime;
-                    if (velocity <= -terminalVelocity)
+                    velocity.y -= jumpFallGravity * Time.fixedDeltaTime;
+                    if (velocity.y <= -terminalVelocity)
                     {
-                        velocity = -terminalVelocity;
+                        velocity.y = -terminalVelocity;
                     }
-                    if (transform.position.y <= groundedHeight)
+                    if (IsGrounded())
                     {
-                        velocity = 0;
+                        velocity.y = 0;
                         currentState = States.Grounded;
-                        transform.position = new Vector3(transform.position.x, groundedHeight, transform.position.z);
+                        //transform.position = new Vector3(transform.position.x, groundedHeight, transform.position.z);
                     }
                     break;
                 }
