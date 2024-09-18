@@ -93,7 +93,6 @@ public class PlayerMove : MonoBehaviour
 
     private bool IsGrounded()
     {
-        Debug.Log(floorDetection.Floors);
         return floorDetection.Floors > 0;
     }
 
